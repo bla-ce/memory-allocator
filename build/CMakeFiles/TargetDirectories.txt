@@ -1,0 +1,3 @@
+/home/unnamed/dev/projects/memory-allocator/build/CMakeFiles/memory-allocator.dir
+/home/unnamed/dev/projects/memory-allocator/build/CMakeFiles/edit_cache.dir
+/home/unnamed/dev/projects/memory-allocator/build/CMakeFiles/rebuild_cache.dir
