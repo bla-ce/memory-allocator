@@ -21,9 +21,14 @@ size_t align(size_t size)
     return (size + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1);
 } 
 
+size_t allocSize(size_t size)
+{
+    return size + sizeof(Block);
+}
+
 Block* requestFromOS(size_t size)
 {
-    size += sizeof(Block); // Prevent SegFault
+    size = allocSize(size); // Prevent SegFault
     Block* block { static_cast<Block*>(sbrk(size)) };
 
     return block;
@@ -46,6 +51,24 @@ Block* findBlock(size_t size)
     return nullptr;
 }
 
+bool canSplit(Block* block, size_t size)
+{
+    return (block->size > size);
+}
+
+Block* split(Block* block, size_t size)
+{
+    Block* newBlock { block + allocSize(size) }; //get splitting pointer
+    newBlock->inuse = false;
+    newBlock->size = block->size - size;
+    newBlock->next = block->next;
+
+    block->next = newBlock;
+    block->size = size;
+
+    return block;
+}
+
 void* alloc(size_t size)
 {
     size = align(size);
@@ -60,7 +83,6 @@ void* alloc(size_t size)
         {
             head = block;
         } else {
-
             Block* curr { head };
             while(curr->next != nullptr) // O(n)
             {
@@ -68,17 +90,20 @@ void* alloc(size_t size)
             }
 
             curr->next = block;
-
         }
 
-        block->inuse = true;
         block->size = size;
+        block->inuse = true;
 
         return block;
     }
 
     block->inuse = true;
-    block->size = size;
+
+    if(canSplit(block, size))
+    {
+        block = split(block, size);
+    }
 
     return block;
 }
@@ -86,16 +111,19 @@ void* alloc(size_t size)
 void free(void* ptr)
 {
     Block* curr { head };
+
     while(curr != nullptr)
     {
         if(curr == ptr)
         {
             curr->inuse = false;
-            break;
+            return;
         }
 
         curr = curr->next;
     }
+
+    return;
 }
 
 void printMemory()
@@ -107,7 +135,7 @@ void printMemory()
         curr = curr->next;
     }
 
-    std::cout << '\n';
+    std::cout << "nullptr\n";
 }
 
 int main()
@@ -131,16 +159,29 @@ int main()
     printMemory();
 
     Block* b3 { static_cast<Block*>(alloc(10)) };
+    printMemory();
     free(b3);
     assert(!b3->inuse);
 
     printMemory();
-
     Block* b4 { static_cast<Block*>(alloc(8)) };
     assert(b3 == b4);
+    assert(b3->size == 8);
+    assert(b4->size == 8);
+    assert(b4->next->next == nullptr);
 
     printMemory();
- 
+
+    free(b1);
+    assert(!head->inuse);
+
+    printMemory();
+    
+    Block* b5 { static_cast<Block*>(alloc(14)) };
+    assert(head == b5);
+    assert(b1 == b5);
+
+    printMemory();
     std::cout << "All assertions passed!\n\n";
 
     return 0;
