@@ -51,6 +51,17 @@ Block* findBlock(size_t size)
     return nullptr;
 }
 
+bool canCoalesce(Block* block)
+{
+    return (block->next != nullptr && !block->next->inuse);
+}
+
+void coalesce(Block* block)
+{
+    block->size += block->next->size;
+    block->next = block->next->next;
+}
+
 bool canSplit(Block* block, size_t size)
 {
     return (block->size > size);
@@ -117,6 +128,12 @@ void free(void* ptr)
         if(curr == ptr)
         {
             curr->inuse = false;
+
+            if(canCoalesce(curr))
+            {
+                coalesce(curr);
+            }
+
             return;
         }
 
@@ -140,7 +157,6 @@ void printMemory()
 
 int main()
 {
-    /* Test Case 1: Data alignment */
     assert( align(8) == sizeof(word_t) );
     assert( align(4) == sizeof(word_t) );
     assert( align(15) == 16 );
@@ -182,6 +198,15 @@ int main()
     assert(b1 == b5);
 
     printMemory();
+
+    Block* b6 { static_cast<Block*>(alloc(17)) };
+    Block* b7 { static_cast<Block*>(alloc(14)) };
+    printMemory();
+
+    free(b7);
+    free(b6);
+    printMemory();
+
     std::cout << "All assertions passed!\n\n";
 
     return 0;
