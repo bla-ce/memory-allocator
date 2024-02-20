@@ -37,18 +37,28 @@ Block* requestFromOS(size_t size)
 Block* findBlock(size_t size)
 {
     Block* curr { head };
+    Block* best { nullptr };
 
     while(curr != nullptr)
     {
         if(curr->size >= size && !curr->inuse)
         {
-            return curr;
+            if( best == nullptr )
+            {
+                best = curr;
+                continue;
+            }
+
+            if( curr->size < best->size )
+            {
+                best = curr;
+            }
         }
 
         curr = curr->next;
     }
 
-    return nullptr;
+    return best;
 }
 
 bool canCoalesce(Block* block)
@@ -148,7 +158,7 @@ void printMemory()
     Block* curr { head };
     while(curr != nullptr)
     {
-        std::cout << '[' << curr->size << ", " << curr->inuse << "], ";
+        std::cout << '[' << curr->size << ", " << curr->inuse << "]->";
         curr = curr->next;
     }
 
@@ -202,10 +212,22 @@ int main()
     Block* b6 { static_cast<Block*>(alloc(17)) };
     Block* b7 { static_cast<Block*>(alloc(14)) };
     printMemory();
-
     free(b7);
     free(b6);
+    assert(b6->size == 40);
     printMemory();
+
+    Block* b8 { static_cast<Block*>(alloc(14)) };
+    printMemory();
+    Block* b9 { static_cast<Block*>(alloc(12)) };
+    printMemory();
+
+    free(b6);
+    free(b4);
+    printMemory();
+    Block* b10 { static_cast<Block*>(alloc(4)) };
+    printMemory();
+    assert(b10 == b9->next);
 
     std::cout << "All assertions passed!\n\n";
 
