@@ -31,6 +31,18 @@ Block* requestFromOS(size_t size)
 
 Block* findBlock(size_t size)
 {
+    Block* curr { head };
+
+    while(curr != nullptr)
+    {
+        if(curr->size >= size && !curr->inuse)
+        {
+            return curr;
+        }
+
+        curr = curr->next;
+    }
+
     return nullptr;
 }
 
@@ -40,26 +52,33 @@ void* alloc(size_t size)
 
     Block* block { findBlock(size) };
     
-    if(!block)
+    if(block == nullptr)
     {
         block = requestFromOS(size);
+
+        if(head == nullptr)
+        {
+            head = block;
+        } else {
+
+            Block* curr { head };
+            while(curr->next != nullptr) // O(n)
+            {
+                curr = curr->next;
+            }
+
+            curr->next = block;
+
+        }
+
+        block->inuse = true;
+        block->size = size;
+
+        return block;
     }
 
     block->inuse = true;
     block->size = size;
-
-    if(head == nullptr)
-    {
-        head = block;
-    } else {
-        Block* curr { head };
-        while(curr->next != nullptr) // O(n)
-        {
-            curr = curr->next;
-        }
-
-        curr->next = block;
-    }
 
     return block;
 }
@@ -118,7 +137,7 @@ int main()
     printMemory();
 
     Block* b4 { static_cast<Block*>(alloc(8)) };
-    assert(b3->next == b4);
+    assert(b3 == b4);
 
     printMemory();
  
