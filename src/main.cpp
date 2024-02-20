@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <unistd.h>
 
 using word_t = intptr_t;
 
@@ -20,11 +21,30 @@ size_t align(size_t size)
     return (size + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1);
 } 
 
+Block* requestFromOS(size_t size)
+{
+    size += sizeof(Block); // Prevent SegFault
+    Block* block { static_cast<Block*>(sbrk(size)) };
+
+    return block;
+}
+
+Block* findBlock(size_t size)
+{
+    return nullptr;
+}
+
 void* alloc(size_t size)
 {
     size = align(size);
 
-    Block* block { static_cast<Block*>( malloc(size) ) };
+    Block* block { findBlock(size) };
+    
+    if(!block)
+    {
+        block = requestFromOS(size);
+    }
+
     block->inuse = true;
     block->size = size;
 
