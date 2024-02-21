@@ -1,10 +1,13 @@
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <pstl/glue_algorithm_defs.h>
 #include <unistd.h>
 
 using word_t = intptr_t;
 
+constexpr size_t MAX_SIZE { 4096 };
 
 struct Block
 {
@@ -15,6 +18,20 @@ struct Block
 };
 
 static Block* head { nullptr };
+
+size_t memorySize()
+{
+    size_t total{};
+    Block* curr { head };
+
+    while( curr != nullptr )
+    {
+        total += curr->size;
+        curr = curr->next;
+    }
+
+    return total;
+}
 
 size_t align(size_t size)
 {
@@ -31,13 +48,15 @@ Block* requestFromOS(size_t size)
     size = allocSize(size); // Prevent SegFault
     Block* block { static_cast<Block*>(sbrk(size)) };
 
+
+
     return block;
 }
 
 Block* findBlock(size_t size)
 {
-    Block* curr { head };
     Block* best { nullptr };
+    Block* curr { head };
 
     while(curr != nullptr)
     {
@@ -93,6 +112,12 @@ Block* split(Block* block, size_t size)
 void* alloc(size_t size)
 {
     size = align(size);
+
+    if(memorySize() + size > MAX_SIZE)
+    {
+        std::cout << "Out of Memory\n\n";
+        return nullptr;
+    }
 
     Block* block { findBlock(size) };
     
@@ -153,16 +178,28 @@ void free(void* ptr)
     return;
 }
 
+
 void printMemory()
 {
     Block* curr { head };
     while(curr != nullptr)
     {
-        std::cout << '[' << curr->size << ", " << curr->inuse << "]->";
+        std::cout << '[' << curr->size << ", " << curr->inuse << "] -> ";
         curr = curr->next;
     }
 
     std::cout << "nullptr\n";
+}
+
+void freeAll()
+{
+    Block* curr { head };
+
+    while(curr != nullptr)
+    {
+        free(curr);
+        curr = curr->next;
+    }
 }
 
 int main()
@@ -228,6 +265,11 @@ int main()
     Block* b10 { static_cast<Block*>(alloc(4)) };
     printMemory();
     assert(b10 == b9->next);
+
+    freeAll();
+    printMemory();
+
+    assert( alloc(4097) == nullptr );
 
     std::cout << "All assertions passed!\n\n";
 
