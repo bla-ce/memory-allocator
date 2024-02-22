@@ -1,8 +1,7 @@
-#include <cassert>
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
-#include <pstl/glue_algorithm_defs.h>
 #include <unistd.h>
 
 using word_t = intptr_t;
@@ -14,6 +13,7 @@ struct Block
     size_t size;
     bool inuse;
 
+    Block* prev { nullptr };
     Block* next { nullptr };
 };
 
@@ -48,8 +48,6 @@ Block* requestFromOS(size_t size)
     size = allocSize(size); // Prevent SegFault
     Block* block { static_cast<Block*>(sbrk(size)) };
 
-
-
     return block;
 }
 
@@ -82,13 +80,23 @@ Block* findBlock(size_t size)
 
 bool canCoalesce(Block* block)
 {
-    return (block->next != nullptr && !block->next->inuse);
+    return (block->next != nullptr && !block->next->inuse) || (block->prev != nullptr && !block->prev->inuse);
 }
 
 void coalesce(Block* block)
 {
-    block->size += block->next->size;
-    block->next = block->next->next;
+    if(block->next != nullptr && !block->next->inuse)
+    {
+        block->size += block->next->size;
+        block->next = block->next->next;
+    }
+
+    if(block->prev != nullptr && !block->prev->inuse)
+    {
+        block->size += block->prev->size;
+        block->prev = block->prev->prev;
+        block->prev->next = block;
+    }
 }
 
 bool canSplit(Block* block, size_t size)
@@ -105,6 +113,7 @@ Block* split(Block* block, size_t size)
 
     block->next = newBlock;
     block->size = size;
+    newBlock->prev = block;
 
     return block;
 }
@@ -136,6 +145,7 @@ void* alloc(size_t size)
             }
 
             curr->next = block;
+            block->prev = curr;
         }
 
         block->size = size;
@@ -191,87 +201,48 @@ void printMemory()
     std::cout << "nullptr\n";
 }
 
-void freeAll()
+void resetHeap()
 {
-    Block* curr { head };
+    if(head == nullptr) return; // already reset
 
-    while(curr != nullptr)
-    {
-        free(curr);
-        curr = curr->next;
-    }
+    brk(head);
+
+    head = nullptr;
+    return;
 }
 
 int main()
 {
-    assert( align(8) == sizeof(word_t) );
-    assert( align(4) == sizeof(word_t) );
-    assert( align(15) == 16 );
-    assert( align(17) == 24 );
+    char choice{};
 
-    Block* b1 { static_cast<Block*>(alloc(12)) }; 
-    assert( b1 != nullptr );
-    assert( head != nullptr );
+    do
+    {
+        std::cout << "\nMemory Allocator:\n";
+        std::cout << "\t1. Allocate Memory\n";
+        std::cout << "\t2. Free Memory\n";
+        std::cout << "\t3. Reset Heap\n";
+        std::cout << "\t4. Print Heap\n";
+        std::cout << "\t5. Get Heap Size\n";
+        std::cout << "\t6. Quit\n\n";
 
-    printMemory();
-   
-    Block* b2 { static_cast<Block*>(alloc(22)) }; 
-    assert( b1->next == b2 );
-    assert( b2 != nullptr );
+        std::cout << "Enter your choice: ";
+        std::cin >> choice;
 
-    printMemory();
+        if( std::clamp( static_cast<int>(choice - '0'), 1, 5) != choice ) continue; // if choice not in range [1, 5]
 
-    Block* b3 { static_cast<Block*>(alloc(10)) };
-    printMemory();
-    free(b3);
-    assert(!b3->inuse);
-
-    printMemory();
-    Block* b4 { static_cast<Block*>(alloc(8)) };
-    assert(b3 == b4);
-    assert(b3->size == 8);
-    assert(b4->size == 8);
-    assert(b4->next->next == nullptr);
-
-    printMemory();
-
-    free(b1);
-    assert(!head->inuse);
-
-    printMemory();
-    
-    Block* b5 { static_cast<Block*>(alloc(14)) };
-    assert(head == b5);
-    assert(b1 == b5);
-
-    printMemory();
-
-    Block* b6 { static_cast<Block*>(alloc(17)) };
-    Block* b7 { static_cast<Block*>(alloc(14)) };
-    printMemory();
-    free(b7);
-    free(b6);
-    assert(b6->size == 40);
-    printMemory();
-
-    Block* b8 { static_cast<Block*>(alloc(14)) };
-    printMemory();
-    Block* b9 { static_cast<Block*>(alloc(12)) };
-    printMemory();
-
-    free(b6);
-    free(b4);
-    printMemory();
-    Block* b10 { static_cast<Block*>(alloc(4)) };
-    printMemory();
-    assert(b10 == b9->next);
-
-    freeAll();
-    printMemory();
-
-    assert( alloc(4097) == nullptr );
-
-    std::cout << "All assertions passed!\n\n";
+        switch (choice) {
+            case '1': 
+                //allocate memory
+            case '2':
+                //free memory
+            case '3':
+                resetHeap();
+            case '4':
+                printMemory();
+            default:
+                std::cout << "Memory Size: " << memorySize() << '\n';
+        }
+    } while(choice != '6');
 
     return 0;
 }

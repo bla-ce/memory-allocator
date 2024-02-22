@@ -88,8 +88,6 @@ CMakeFiles/memory-allocator.dir/src/main.cpp.o
  /usr/include/c++/13/istream
  /usr/include/c++/13/new
  /usr/include/c++/13/ostream
- /usr/include/c++/13/pstl/execution_defs.h
- /usr/include/c++/13/pstl/glue_algorithm_defs.h
  /usr/include/c++/13/pstl/pstl_config.h
  /usr/include/c++/13/stdexcept
  /usr/include/c++/13/streambuf
