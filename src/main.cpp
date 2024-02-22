@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -228,19 +227,33 @@ int main()
         std::cout << "Enter your choice: ";
         std::cin >> choice;
 
-        if( std::clamp( static_cast<int>(choice - '0'), 1, 5) != choice ) continue; // if choice not in range [1, 5]
-
         switch (choice) {
-            case '1': 
-                //allocate memory
+            case '1':
+                {
+                    int size{};
+                    std::cout << "Enter the size of memory to allocate: ";
+                    std::cin >> size;
+                    void* ptr { alloc(size) };
+
+                    if( ptr )
+                    {
+                        std::cout << "Memory successfully allocated at " << ptr << '\n';    
+                    }
+
+                    break;
+                }
             case '2':
                 //free memory
+                break;
             case '3':
                 resetHeap();
+                break;
             case '4':
                 printMemory();
-            default:
+                break;
+            case '5':
                 std::cout << "Memory Size: " << memorySize() << '\n';
+                break;
         }
     } while(choice != '6');
 
