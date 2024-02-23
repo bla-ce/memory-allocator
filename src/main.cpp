@@ -2,6 +2,30 @@
 #include <cstdlib>
 #include <iostream>
 #include <unistd.h>
+#include <algorithm>
+#include <chrono> // for std::chrono functions
+#include <vector>
+
+class Timer
+{
+private:
+	// Type aliases to make accessing nested type easier
+	using Clock = std::chrono::steady_clock;
+	using Second = std::chrono::duration<double, std::ratio<1> >;
+
+	std::chrono::time_point<Clock> m_beg { Clock::now() };
+
+public:
+	void reset()
+	{
+		m_beg = Clock::now();
+	}
+
+	double elapsed() const
+	{
+		return std::chrono::duration_cast<Second>(Clock::now() - m_beg).count();
+	}
+};
 
 using word_t = intptr_t;
 
@@ -17,6 +41,7 @@ struct Block
 };
 
 static Block* head { nullptr };
+std::vector<Block*> free_list{};
 
 size_t memorySize()
 {
@@ -52,29 +77,16 @@ Block* requestFromOS(size_t size)
 
 Block* findBlock(size_t size)
 {
-    Block* best { nullptr };
-    Block* curr { head };
-
-    while(curr != nullptr)
+    if(free_list.size() == 0) return nullptr;
+    for(const auto& block : free_list)
     {
-        if(curr->size >= size && !curr->inuse)
+        if(block->size >= size)
         {
-            if( best == nullptr )
-            {
-                best = curr;
-                continue;
-            }
-
-            if( curr->size < best->size )
-            {
-                best = curr;
-            }
+            return block;
         }
-
-        curr = curr->next;
     }
 
-    return best;
+    return nullptr;
 }
 
 bool canCoalesce(Block* block)
@@ -128,6 +140,7 @@ void* alloc(size_t size)
     }
 
     Block* block { findBlock(size) };
+    free_list.erase(std::remove(free_list.begin(), free_list.end(), block), free_list.end());
     
     if(block == nullptr)
     {
@@ -178,6 +191,8 @@ void free(void* ptr)
                 coalesce(curr);
             }
 
+            free_list.push_back(curr);
+
             return;
         }
 
@@ -214,6 +229,9 @@ int main()
 {
     char choice{};
 
+    Block* b1 { static_cast<Block*>(alloc(10)) };
+    free(b1);
+
     do
     {
         std::cout << "\nMemory Allocator:\n";
@@ -233,11 +251,14 @@ int main()
                     int size{};
                     std::cout << "Enter the size of memory to allocate: ";
                     std::cin >> size;
+
+                    Timer t;
                     void* ptr { alloc(size) };
 
                     if( ptr )
                     {
                         std::cout << "Memory successfully allocated at " << ptr << '\n';    
+                        std::cout << "runtime: " << t.elapsed() << "sec\n";
                     }
 
                     break;
