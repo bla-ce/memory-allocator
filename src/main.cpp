@@ -1,6 +1,7 @@
 /** Includes **/
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -50,8 +51,10 @@ Block *requestFromOS(size_t size) {
   if (size > M_MMAP_THRESHOLD) {
     block = mmap(nullptr, size, PROT_WRITE | PROT_WRITE,
                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(errno == 0 && "mmap failed to allocate memory");
   } else {
     block = sbrk(size);
+    assert(errno == 0 && "sbrk failed to allocate memory");
   }
 
   return static_cast<Block *>(block);
